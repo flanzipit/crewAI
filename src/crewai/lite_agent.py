@@ -15,12 +15,14 @@ from typing import (
     get_origin,
 )
 
+
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
 from pydantic import (
+    UUID4,
     BaseModel,
     Field,
     InstanceOf,
@@ -38,7 +40,7 @@ from crewai.agents.parser import (
     OutputParserException,
 )
 from crewai.flow.flow_trackable import FlowTrackable
-from crewai.llm import LLM
+from crewai.llm import LLM, BaseLLM
 from crewai.tools.base_tool import BaseTool
 from crewai.tools.structured_tool import CrewStructuredTool
 from crewai.utilities import I18N
@@ -129,10 +131,11 @@ class LiteAgent(FlowTrackable, BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     # Core Agent Properties
+    id: UUID4 = Field(default_factory=uuid.uuid4, frozen=True)
     role: str = Field(description="Role of the agent")
     goal: str = Field(description="Goal of the agent")
     backstory: str = Field(description="Backstory of the agent")
-    llm: Optional[Union[str, InstanceOf[LLM], Any]] = Field(
+    llm: Optional[Union[str, InstanceOf[BaseLLM], Any]] = Field(
         default=None, description="Language model that will run the agent"
     )
     tools: List[BaseTool] = Field(
@@ -144,7 +147,7 @@ class LiteAgent(FlowTrackable, BaseModel):
         default=15, description="Maximum number of iterations for tool usage"
     )
     max_execution_time: Optional[int] = Field(
-        default=None, description="Maximum execution time in seconds"
+        default=None, description=". Maximum execution time in seconds"
     )
     respect_context_window: bool = Field(
         default=True,
@@ -206,8 +209,10 @@ class LiteAgent(FlowTrackable, BaseModel):
     def setup_llm(self):
         """Set up the LLM and other components after initialization."""
         self.llm = create_llm(self.llm)
-        if not isinstance(self.llm, LLM):
-            raise ValueError("Unable to create LLM instance")
+        if not isinstance(self.llm, BaseLLM):
+            raise ValueError(
+                f"Expected LLM instance of type BaseLLM, got {type(self.llm).__name__}"
+            )
 
         # Initialize callbacks
         token_callback = TokenCalcHandler(token_cost_process=self._token_process)
@@ -229,7 +234,10 @@ class LiteAgent(FlowTrackable, BaseModel):
         elif isinstance(self.guardrail, str):
             from crewai.tasks.llm_guardrail import LLMGuardrail
 
-            assert isinstance(self.llm, LLM)
+            if not isinstance(self.llm, BaseLLM):
+                raise TypeError(
+                    f"Guardrail requires LLM instance of type BaseLLM, got {type(self.llm).__name__}"
+                )
 
             self._guardrail = LLMGuardrail(description=self.guardrail, llm=self.llm)
 
@@ -301,6 +309,7 @@ class LiteAgent(FlowTrackable, BaseModel):
         """
         # Create agent info for event emission
         agent_info = {
+            "id": self.id,
             "role": self.role,
             "goal": self.goal,
             "backstory": self.backstory,
@@ -510,13 +519,16 @@ class LiteAgent(FlowTrackable, BaseModel):
 
                 enforce_rpm_limit(self.request_within_rpm_limit)
 
-                # Emit LLM call started event
+                llm = cast(LLM, self.llm)
+                model = llm.model if hasattr(llm, "model") else "unknown"
                 crewai_event_bus.emit(
                     self,
                     event=LLMCallStartedEvent(
                         messages=self._messages,
                         tools=None,
                         callbacks=self._callbacks,
+                        from_agent=self,
+                        model=model,
                     ),
                 )
 
@@ -526,21 +538,25 @@ class LiteAgent(FlowTrackable, BaseModel):
                         messages=self._messages,
                         callbacks=self._callbacks,
                         printer=self._printer,
+                        from_agent=self,
                     )
 
                     # Emit LLM call completed event
                     crewai_event_bus.emit(
                         self,
                         event=LLMCallCompletedEvent(
+                            messages=self._messages,
                             response=answer,
                             call_type=LLMCallType.LLM_CALL,
+                            from_agent=self,
+                            model=model,
                         ),
                     )
                 except Exception as e:
                     # Emit LLM call failed event
                     crewai_event_bus.emit(
                         self,
-                        event=LLMCallFailedEvent(error=str(e)),
+                        event=LLMCallFailedEvent(error=str(e), from_agent=self),
                     )
                     raise e
 

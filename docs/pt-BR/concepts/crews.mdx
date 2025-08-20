@@ -20,8 +20,7 @@ Uma crew no crewAI representa um grupo colaborativo de agentes trabalhando em co
 | **Function Calling LLM** _(opcional)_ | `function_calling_llm`  | Se definido, a crew utilizará este LLM para invocar funções das ferramentas para todos os agentes da crew. Cada agente pode ter seu próprio LLM, que substitui o LLM da crew para chamadas de função.                     |
 | **Config** _(opcional)_               | `config`                | Configurações opcionais para a crew, no formato `Json` ou `Dict[str, Any]`.                                                                                                       |
 | **Max RPM** _(opcional)_              | `max_rpm`               | Número máximo de requisições por minuto que a crew respeita durante a execução. O padrão é `None`.                                                                                                                       |
-| **Memory** _(opcional)_               | `memory`                | Utilizada para armazenar memórias de execução (curto prazo, longo prazo, memória de entidade).                                                                                                                           |
-| **Memory Config** _(opcional)_        | `memory_config`         | Configuração para o provedor de memória a ser utilizada pela crew.                                                                                                                |
+| **Memory** _(opcional)_               | `memory`                | Utilizada para armazenar memórias de execução (curto prazo, longo prazo, memória de entidade).                                                                                                                           |                                                                                                      |
 | **Cache** _(opcional)_                | `cache`                 | Especifica se deve usar cache para armazenar os resultados da execução de ferramentas. O padrão é `True`.                                                                         |
 | **Embedder** _(opcional)_             | `embedder`              | Configuração do embedder a ser utilizado pela crew. Atualmente mais usado por memory. O padrão é `{"provider": "openai"}`.                                                        |
 | **Step Callback** _(opcional)_        | `step_callback`         | Uma função chamada após cada etapa de cada agente. Pode ser usada para registrar as ações do agente ou executar outras operações; não sobrescreve o `step_callback` específico do agente.                                |
@@ -153,32 +152,32 @@ from crewai_tools import YourCustomTool
 class YourCrewName:
     def agent_one(self) -> Agent:
         return Agent(
-            role="Data Analyst",
-            goal="Analyze data trends in the market",
-            backstory="An experienced data analyst with a background in economics",
+            role="Analista de Dados",
+            goal="Analisar tendências de dados no mercado brasileiro",
+            backstory="Analista experiente com formação em economia",
             verbose=True,
             tools=[YourCustomTool()]
         )
 
     def agent_two(self) -> Agent:
         return Agent(
-            role="Market Researcher",
-            goal="Gather information on market dynamics",
-            backstory="A diligent researcher with a keen eye for detail",
+            role="Pesquisador de Mercado",
+            goal="Coletar informações sobre a dinâmica do mercado nacional",
+            backstory="Pesquisador dedicado com olhar atento aos detalhes",
             verbose=True
         )
 
     def task_one(self) -> Task:
         return Task(
-            description="Collect recent market data and identify trends.",
-            expected_output="A report summarizing key trends in the market.",
+            description="Coletar dados recentes do mercado brasileiro e identificar tendências.",
+            expected_output="Um relatório resumido com as principais tendências do mercado.",
             agent=self.agent_one()
         )
 
     def task_two(self) -> Task:
         return Task(
-            description="Research factors affecting market dynamics.",
-            expected_output="An analysis of factors influencing the market.",
+            description="Pesquisar fatores que afetam a dinâmica do mercado nacional.",
+            expected_output="Uma análise dos fatores que influenciam o mercado.",
             agent=self.agent_two()
         )
 

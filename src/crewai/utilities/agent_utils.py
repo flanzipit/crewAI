@@ -145,18 +145,18 @@ def get_llm_response(
     messages: List[Dict[str, str]],
     callbacks: List[Any],
     printer: Printer,
+    from_task: Optional[Any] = None,
+    from_agent: Optional[Any] = None,
 ) -> str:
     """Call the LLM and return the response, handling any invalid responses."""
     try:
         answer = llm.call(
             messages,
             callbacks=callbacks,
+            from_task=from_task,
+            from_agent=from_agent,
         )
     except Exception as e:
-        printer.print(
-            content=f"Error during LLM call: {e}",
-            color="red",
-        )
         raise e
     if not answer:
         printer.print(
@@ -228,12 +228,17 @@ def handle_unknown_error(printer: Any, exception: Exception) -> None:
         printer: Printer instance for output
         exception: The exception that occurred
     """
+    error_message = str(exception)
+
+    if "litellm" in error_message:
+        return
+
     printer.print(
         content="An unknown error occurred. Please check the details below.",
         color="red",
     )
     printer.print(
-        content=f"Error details: {exception}",
+        content=f"Error details: {error_message}",
         color="red",
     )
 
@@ -395,7 +400,7 @@ def show_agent_logs(
     if not verbose:
         return
 
-    agent_role = agent_role.split("\n")[0]
+    agent_role = agent_role.partition("\n")[0]
 
     if formatted_answer is None:
         # Start logs
